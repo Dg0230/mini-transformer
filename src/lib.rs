@@ -30,6 +30,8 @@ pub mod checkpoint;
 pub mod decoder;
 pub mod seq2seq;
 pub mod pretraining;
+pub mod gradient_clip;
+pub mod rope;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -46,6 +48,8 @@ pub use checkpoint::{Checkpoint, TrainingHistory, CheckpointManager};
 pub use seq2seq::Seq2SeqTransformer;
 pub use decoder::{MaskedAttention, CrossAttention, DecoderLayer};
 pub use pretraining::{MLMPretrainer, MLMConfig, CLMConfig, apply_mlm_mask, apply_mlm_mask_batch, create_clm_targets};
+pub use gradient_clip::{GradientClipConfig, ClipType, clip_gradients, clip_grad_norm, clip_grad_value};
+pub use rope::{RoPEConfig, RoPEAttention, apply_rope_batch, apply_rotary_pos_emb};
 
 /// 预设配置
 pub mod configs {

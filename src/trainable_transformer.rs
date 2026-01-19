@@ -295,14 +295,14 @@ impl TrainableTransformer {
     }
 
     /// One-hot 编码
-    fn one_hot(class: usize, n_classes: usize) -> Array2<f32> {
+    pub fn one_hot(class: usize, n_classes: usize) -> Array2<f32> {
         let mut arr = Array2::zeros((1, n_classes));
         arr[[0, class]] = 1.0;
         arr
     }
 
     /// 批量 one-hot 编码
-    fn one_hot_batch(classes: &[usize], n_classes: usize) -> Array2<f32> {
+    pub fn one_hot_batch(classes: &[usize], n_classes: usize) -> Array2<f32> {
         let batch_size = classes.len();
         let mut arr = Array2::zeros((batch_size, n_classes));
         for (i, &class) in classes.iter().enumerate() {
