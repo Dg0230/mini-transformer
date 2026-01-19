@@ -4,6 +4,7 @@
 
 use ndarray::Array2;
 use crate::tensor::TensorExt;  // Import trait for matmul method
+use crate::rope::{apply_rotary_pos_emb, RoPEConfig};
 
 /// 可训练的线性层
 ///
@@ -109,6 +110,10 @@ pub struct TrainableAttention {
     cache: Option<AttentionCache>,
     /// 训练模式
     training: bool,
+    /// 是否使用 RoPE
+    use_rope: bool,
+    /// RoPE 配置
+    rope_config: Option<RoPEConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -121,6 +126,10 @@ struct AttentionCache {
 
 impl TrainableAttention {
     pub fn new(d_model: usize, n_heads: usize) -> Self {
+        Self::new_with_rope(d_model, n_heads, false, None)
+    }
+
+    pub fn new_with_rope(d_model: usize, n_heads: usize, use_rope: bool, rope_config: Option<RoPEConfig>) -> Self {
         assert_eq!(d_model % n_heads, 0, "d_model must be divisible by n_heads");
 
         let d_k = d_model / n_heads;
@@ -135,6 +144,8 @@ impl TrainableAttention {
             w_o: Linear::new(d_model, d_model),
             cache: None,
             training: false,
+            use_rope,
+            rope_config,
         }
     }
 
@@ -157,9 +168,35 @@ impl TrainableAttention {
     /// 前向传播
     pub fn forward(&mut self, x: &Array2<f32>) -> (Array2<f32>, Option<Array2<f32>>) {
         // 计算 Q, K, V
-        let q = self.w_q.forward(x);
-        let k = self.w_k.forward(x);
+        let mut q = self.w_q.forward(x);
+        let mut k = self.w_k.forward(x);
         let v = self.w_v.forward(x);
+
+        // 应用 RoPE（如果启用）
+        if self.use_rope {
+            // 对每个位置应用 RoPE
+            // x is [batch_size * seq_len, d_model]
+            // 需要逐个位置应用 RoPE
+            let seq_len = x.nrows();
+
+            for pos in 0..seq_len {
+                let q_row = q.row(pos).to_vec();
+                let k_row = k.row(pos).to_vec();
+
+                // 转换为 Array2 以应用 RoPE
+                let q_2d = Array2::from_shape_vec((1, self.d_model), q_row).unwrap();
+                let k_2d = Array2::from_shape_vec((1, self.d_model), k_row).unwrap();
+
+                // 应用 RoPE
+                let (q_rotated, k_rotated) = apply_rotary_pos_emb(&q_2d, &k_2d, pos);
+
+                // 更新 Q 和 K
+                for j in 0..self.d_model {
+                    q[[pos, j]] = q_rotated[[0, j]];
+                    k[[pos, j]] = k_rotated[[0, j]];
+                }
+            }
+        }
 
         // 缩放点积注意力
         let scale = (self.d_k as f32).sqrt();

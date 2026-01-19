@@ -7,6 +7,7 @@ use crate::trainable::{Linear, TrainableAttention, TrainableFFN};
 use crate::embedding::{Embedding, PositionalEncoding};
 use crate::tensor::TensorExt;
 use crate::lr_scheduler::LRScheduler;
+use crate::rope::RoPEConfig;
 
 /// 可训练的 Transformer Encoder Layer
 #[derive(Debug)]
@@ -25,8 +26,18 @@ pub struct TrainableEncoderLayer {
 
 impl TrainableEncoderLayer {
     pub fn new(d_model: usize, n_heads: usize, d_ff: usize) -> Self {
+        Self::new_with_rope(d_model, n_heads, d_ff, false, None)
+    }
+
+    pub fn new_with_rope(
+        d_model: usize,
+        n_heads: usize,
+        d_ff: usize,
+        use_rope: bool,
+        rope_config: Option<RoPEConfig>,
+    ) -> Self {
         Self {
-            attention: TrainableAttention::new(d_model, n_heads),
+            attention: TrainableAttention::new_with_rope(d_model, n_heads, use_rope, rope_config),
             ffn: TrainableFFN::new(d_model, d_ff),
             gamma1: Array2::ones((1, d_model)),
             beta1: Array2::zeros((1, d_model)),
@@ -92,11 +103,32 @@ pub struct TrainableTransformer {
 
 impl TrainableTransformer {
     pub fn new(vocab_size: usize, d_model: usize, n_heads: usize, n_layers: usize, d_ff: usize, max_seq_len: usize, n_classes: usize) -> Self {
+        Self::new_with_rope(vocab_size, d_model, n_heads, n_layers, d_ff, max_seq_len, n_classes, false, None)
+    }
+
+    pub fn new_with_rope(
+        vocab_size: usize,
+        d_model: usize,
+        n_heads: usize,
+        n_layers: usize,
+        d_ff: usize,
+        max_seq_len: usize,
+        n_classes: usize,
+        use_rope: bool,
+        rope_config: Option<RoPEConfig>,
+    ) -> Self {
         let embedding = Embedding::new(vocab_size, d_model);
         let pos_encoding = PositionalEncoding::new(max_seq_len, d_model);
 
+        // 如果使用 RoPE，创建 RoPE 配置
+        let rope_config = if use_rope {
+            Some(rope_config.unwrap_or_else(|| RoPEConfig::new(d_model)))
+        } else {
+            None
+        };
+
         let layers = (0..n_layers)
-            .map(|_| TrainableEncoderLayer::new(d_model, n_heads, d_ff))
+            .map(|_| TrainableEncoderLayer::new_with_rope(d_model, n_heads, d_ff, use_rope, rope_config.clone()))
             .collect();
 
         let classifier = Linear::new(d_model, n_classes);
