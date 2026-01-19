@@ -8,6 +8,8 @@
 
 ## 架构
 
+### Encoder 架构
+
 ```text
 Input → Embedding → Positional Encoding →
     [Transformer Encoder Layer × N] → Output
@@ -15,6 +17,18 @@ Input → Embedding → Positional Encoding →
     ├── Add & Norm
     ├── Feed Forward Network
     └── Add & Norm
+```
+
+### Seq2Seq 架构
+
+```text
+Encoder → Decoder → Output
+           ↓
+    ├── Masked Self-Attention (因果掩码)
+    ├── Cross-Attention (关注 Encoder)
+    ├── Add & Norm
+    ├── Feed Forward Network
+     └── Add & Norm
 ```
 
 ## 项目结构
@@ -155,6 +169,42 @@ cargo run --example batch_training
 cargo run --example optimized_training
 ```
 
+### 文本生成
+
+```bash
+# Seq2Seq 文本生成
+cargo run --example text_generation
+```
+
+```rust
+use mini_transformer::Seq2SeqTransformer;
+
+// 创建 Seq2Seq 模型
+let mut model = Seq2SeqTransformer::new(
+    1000,  // vocab_size
+    128,   // d_model
+    4,     // n_heads
+    2,     // n_layers
+    256,   // d_ff
+    50,    // max_seq_len
+);
+
+// 贪婪解码生成
+let output = model.generate_greedy(
+    &source,    // 源序列
+    20,          // 最大生成长度
+    0,           // 起始 token
+);
+
+// 束搜索生成
+let output = model.generate_beam(
+    &source,
+    20,          // 最大生成长度
+    3,           // 束宽度
+    0,           // 起始 token
+);
+```
+
 ## 模型配置
 
 ### Mini 配置（快速测试）
@@ -234,24 +284,36 @@ GELU(x) ≈ 0.5 × x × (1 + tanh(√(2/π) × (x + 0.044715 × x³)))
 - [x] **早停机制** - 防止过拟合
 - [x] **文本数据集** - 情感分类数据集
 - [x] **实战示例** - 情感分析训练
+- [x] **批处理优化** - 3.82x 加速
+- [x] **学习率调度** - 动态学习率调整
+
+### Seq2Seq 功能 ✨ 新增
+- [x] **Decoder 层** - 完整的 Decoder 实现
+- [x] **Masked Attention** - 因果掩码自注意力
+- [x] **Cross-Attention** - Encoder-Decoder 注意力
+- [x] **贪婪解码** - 快速生成策略
+- [x] **束搜索** - 高质量生成
+- [x] **生成示例** - 文本生成演示
 
 ## 下一步扩展
 
 ### 方向 A: 改进训练效果
+- [x] **批处理训练** - 已实现 3.82x 加速
+- [x] **学习率调度** - 已集成到训练循环
 - [ ] **更多数据** - 扩大数据集规模
-- [ ] **更好的梯度** - 改进反向传播精度
-- [ ] **学习率调度** - 在训练中动态调整
 - [ ] **数据增强** - 文本增强技术
+- [ ] **梯度裁剪** - 防止梯度爆炸
 
 ### 方向 B: 架构扩展
-- [ ] **Decoder 层** - 实现完整 Seq2Seq
+- [x] **Decoder 层** - 已实现完整 Seq2Seq
 - [ ] **更多注意力类型** - 实现其他注意力变体
 - [ ] **预训练** - 实现 BERT 风格的预训练
+- [ ] **Transformer-XL** - 长距离依赖
 
 ### 方向 C: 性能优化
 - [ ] **GPU 支持** - 迁移到 candle 或 burn
-- [ ] **批处理训练** - 支持真正的 batch 训练
 - [ ] **混合精度** - 使用 f16 加速训练
+- [ ] **模型量化** - 压缩模型大小
 
 ## 技术栈
 
