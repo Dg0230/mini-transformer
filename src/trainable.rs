@@ -87,6 +87,17 @@ impl Linear {
     pub fn param_count(&self) -> usize {
         self.weight.len() + self.bias.len()
     }
+
+    /// 获取权重（用于保存）
+    pub fn get_weights(&self) -> (&Array2<f32>, &Array2<f32>) {
+        (&self.weight, &self.bias)
+    }
+
+    /// 设置权重（用于加载）
+    pub fn set_weights(&mut self, weight: Array2<f32>, bias: Array2<f32>) {
+        self.weight = weight;
+        self.bias = bias;
+    }
 }
 
 /// 可训练的 Multi-Head Attention
@@ -151,6 +162,37 @@ impl TrainableAttention {
 
     pub fn d_model(&self) -> usize {
         self.d_model
+    }
+
+    pub fn d_k(&self) -> usize {
+        self.d_k
+    }
+
+    pub fn n_heads(&self) -> usize {
+        self.n_heads
+    }
+
+    /// 获取所有权重（用于保存）
+    pub fn get_all_weights(&self) -> (Vec<(&Array2<f32>, &Array2<f32>)>, (&Array2<f32>, &Array2<f32>)) {
+        let attn_weights = vec![
+            self.w_q.get_weights(),
+            self.w_k.get_weights(),
+            self.w_v.get_weights(),
+        ];
+        let output_weights = self.w_o.get_weights();
+        (attn_weights, output_weights)
+    }
+
+    /// 设置所有权重（用于加载）
+    pub fn set_all_weights(
+        &mut self,
+        attn_weights: Vec<(Array2<f32>, Array2<f32>)>,
+        output_weights: (Array2<f32>, Array2<f32>),
+    ) {
+        self.w_q.set_weights(attn_weights[0].0.clone(), attn_weights[0].1.clone());
+        self.w_k.set_weights(attn_weights[1].0.clone(), attn_weights[1].1.clone());
+        self.w_v.set_weights(attn_weights[2].0.clone(), attn_weights[2].1.clone());
+        self.w_o.set_weights(output_weights.0, output_weights.1);
     }
 
     pub fn set_training(&mut self, training: bool) {
@@ -365,6 +407,20 @@ impl TrainableFFN {
 
     pub fn param_count(&self) -> usize {
         self.linear1.param_count() + self.linear2.param_count()
+    }
+
+    /// 获取所有权重（用于保存）
+    pub fn get_all_weights(&self) -> (Vec<(&Array2<f32>, &Array2<f32>)>) {
+        vec![
+            self.linear1.get_weights(),
+            self.linear2.get_weights(),
+        ]
+    }
+
+    /// 设置所有权重（用于加载）
+    pub fn set_all_weights(&mut self, weights: Vec<(Array2<f32>, Array2<f32>)>) {
+        self.linear1.set_weights(weights[0].0.clone(), weights[0].1.clone());
+        self.linear2.set_weights(weights[1].0.clone(), weights[1].1.clone());
     }
 }
 

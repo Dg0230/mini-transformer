@@ -1,12 +1,51 @@
 //! 模型检查点保存和加载
 //!
-//! 支持保存和加载训练状态、模型权重等
+//! 支持保存和加载训练状态、模型权重、优化器状态等
 
 use ndarray::Array2;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
+
+/// 可序列化的 Array2 包装器
+///
+/// ndarray::Array2 的序列化包装器，用于 serde
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SerializableArray {
+    /// 数据（行优先）
+    pub data: Vec<f32>,
+    /// 形状 (rows, cols)
+    pub shape: (usize, usize),
+}
+
+impl From<Array2<f32>> for SerializableArray {
+    fn from(arr: Array2<f32>) -> Self {
+        let shape = (arr.nrows(), arr.ncols());
+        let data = arr.into_raw_vec();
+        Self { data, shape }
+    }
+}
+
+impl From<SerializableArray> for Array2<f32> {
+    fn from(sarr: SerializableArray) -> Self {
+        Array2::from_shape_vec(sarr.shape, sarr.data).unwrap()
+    }
+}
+
+impl SerializableArray {
+    /// 转换为 Array2
+    pub fn to_array(&self) -> Array2<f32> {
+        Array2::from_shape_vec(self.shape, self.data.clone()).unwrap()
+    }
+
+    /// 从 Array2 创建
+    pub fn from_array(arr: &Array2<f32>) -> Self {
+        let shape = (arr.nrows(), arr.ncols());
+        let data = arr.as_slice().unwrap().to_vec();
+        Self { data, shape }
+    }
+}
 
 /// 训练检查点
 ///
@@ -285,6 +324,194 @@ impl CheckpointManager {
                 None
             }
         }
+    }
+}
+
+/// 模型状态
+///
+/// 包含完整的模型权重
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelState {
+    /// 嵌入层权重
+    pub embedding_weights: Vec<SerializableArray>,
+    /// 编码器层权重
+    pub encoder_weights: Vec<LayerWeights>,
+    /// 分类器权重
+    pub classifier_weights: ClassifierWeights,
+    /// 模型配置
+    pub config: ModelConfig,
+}
+
+/// 单层的权重
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LayerWeights {
+    /// Q, K, V, O 投影权重
+    pub attn_weights: AttnWeights,
+    /// FFN 权重
+    pub ffn_weights: FFNWeights,
+    /// LayerNorm 参数
+    pub norm1_gamma: SerializableArray,
+    pub norm1_beta: SerializableArray,
+    pub norm2_gamma: SerializableArray,
+    pub norm2_beta: SerializableArray,
+}
+
+/// 注意力权重
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttnWeights {
+    pub w_q_weight: SerializableArray,
+    pub w_q_bias: SerializableArray,
+    pub w_k_weight: SerializableArray,
+    pub w_k_bias: SerializableArray,
+    pub w_v_weight: SerializableArray,
+    pub w_v_bias: SerializableArray,
+    pub w_o_weight: SerializableArray,
+    pub w_o_bias: SerializableArray,
+}
+
+/// FFN 权重
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FFNWeights {
+    pub linear1_weight: SerializableArray,
+    pub linear1_bias: SerializableArray,
+    pub linear2_weight: SerializableArray,
+    pub linear2_bias: SerializableArray,
+}
+
+/// 分类器权重
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClassifierWeights {
+    pub weight: SerializableArray,
+    pub bias: SerializableArray,
+}
+
+/// 模型配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelConfig {
+    pub vocab_size: usize,
+    pub d_model: usize,
+    pub n_heads: usize,
+    pub n_layers: usize,
+    pub d_ff: usize,
+    pub max_seq_len: usize,
+    pub n_classes: usize,
+}
+
+/// 优化器状态（Adam）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OptimizerState {
+    /// 学习率
+    pub learning_rate: f32,
+    /// 一阶矩估计（m）
+    pub moments: Vec<SerializableArray>,
+    /// 二阶矩估计（v）
+    pub variances: Vec<SerializableArray>,
+    /// 时间步
+    pub timestep: usize,
+}
+
+/// 完整检查点（包含模型和优化器状态）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FullCheckpoint {
+    /// 模型状态
+    pub model: ModelState,
+    /// 优化器状态
+    pub optimizer: Option<OptimizerState>,
+    /// 训练状态
+    pub training: TrainingState,
+}
+
+/// 训练状态
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrainingState {
+    /// 当前 epoch
+    pub epoch: usize,
+    /// 训练损失
+    pub train_loss: f32,
+    /// 验证损失
+    pub val_loss: f32,
+    /// 训练准确率
+    pub train_acc: f32,
+    /// 验证准确率
+    pub val_acc: f32,
+    /// 全局步数
+    pub global_step: usize,
+}
+
+impl FullCheckpoint {
+    /// 保存完整检查点
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let file = File::create(path)?;
+        let writer = BufWriter::new(file);
+        bincode::serialize_into(writer, self)?;
+        Ok(())
+    }
+
+    /// 加载完整检查点
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let checkpoint = bincode::deserialize_from(reader)?;
+        Ok(checkpoint)
+    }
+
+    /// 保存为 JSON（可读性更好）
+    pub fn save_json<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let file = File::create(path)?;
+        let writer = BufWriter::new(file);
+        serde_json::to_writer_pretty(writer, self)?;
+        Ok(())
+    }
+
+    /// 从 JSON 加载
+    pub fn load_json<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let checkpoint = serde_json::from_reader(reader)?;
+        Ok(checkpoint)
+    }
+}
+
+/// 模型保存/加载 trait
+pub trait ModelSaveLoad {
+    /// 保存模型状态
+    fn save_model(&self) -> Result<ModelState, Box<dyn std::error::Error>>;
+
+    /// 加载模型状态
+    fn load_model(&mut self, state: ModelState) -> Result<(), Box<dyn std::error::Error>>;
+
+    /// 保存模型到文件
+    fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let state = self.save_model()?;
+        let file = File::create(path)?;
+        let writer = BufWriter::new(file);
+        bincode::serialize_into(writer, &state)?;
+        Ok(())
+    }
+
+    /// 从文件加载模型
+    fn load<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let state: ModelState = bincode::deserialize_from(reader)?;
+        self.load_model(state)
+    }
+
+    /// 保存为 JSON
+    fn save_json<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let state = self.save_model()?;
+        let file = File::create(path)?;
+        let writer = BufWriter::new(file);
+        serde_json::to_writer_pretty(writer, &state)?;
+        Ok(())
+    }
+
+    /// 从 JSON 加载
+    fn load_json<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let state: ModelState = serde_json::from_reader(reader)?;
+        self.load_model(state)
     }
 }
 

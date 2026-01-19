@@ -8,6 +8,10 @@ use crate::embedding::{Embedding, PositionalEncoding};
 use crate::tensor::TensorExt;
 use crate::lr_scheduler::LRScheduler;
 use crate::rope::RoPEConfig;
+use crate::checkpoint::{
+    ModelSaveLoad, ModelState, ModelConfig, LayerWeights, AttnWeights,
+    FFNWeights, ClassifierWeights, SerializableArray,
+};
 
 /// 可训练的 Transformer Encoder Layer
 #[derive(Debug)]
@@ -736,6 +740,154 @@ impl TrainableTransformer {
         let clf_params = self.classifier.param_count();
 
         embed_params + pos_params + layer_params + clf_params
+    }
+}
+
+impl ModelSaveLoad for TrainableTransformer {
+    fn save_model(&self) -> Result<ModelState, Box<dyn std::error::Error>> {
+        // 保存嵌入层权重
+        let embedding_weights = vec![SerializableArray::from_array(self.embedding.weights())];
+
+        // 保存每个编码器层的权重
+        let mut encoder_weights = Vec::new();
+        for layer in &self.layers {
+            // 保存注意力权重
+            let (attn_weights_list, output_weights) = layer.attention.get_all_weights();
+            let attn_weights = AttnWeights {
+                w_q_weight: SerializableArray::from_array(attn_weights_list[0].0),
+                w_q_bias: SerializableArray::from_array(attn_weights_list[0].1),
+                w_k_weight: SerializableArray::from_array(attn_weights_list[1].0),
+                w_k_bias: SerializableArray::from_array(attn_weights_list[1].1),
+                w_v_weight: SerializableArray::from_array(attn_weights_list[2].0),
+                w_v_bias: SerializableArray::from_array(attn_weights_list[2].1),
+                w_o_weight: SerializableArray::from_array(output_weights.0),
+                w_o_bias: SerializableArray::from_array(output_weights.1),
+            };
+
+            // 保存 FFN 权重
+            let ffn_weights_list = layer.ffn.get_all_weights();
+            let ffn_weights = FFNWeights {
+                linear1_weight: SerializableArray::from_array(ffn_weights_list[0].0),
+                linear1_bias: SerializableArray::from_array(ffn_weights_list[0].1),
+                linear2_weight: SerializableArray::from_array(ffn_weights_list[1].0),
+                linear2_bias: SerializableArray::from_array(ffn_weights_list[1].1),
+            };
+
+            // 保存 LayerNorm 参数
+            let layer_weights = LayerWeights {
+                attn_weights,
+                ffn_weights,
+                norm1_gamma: SerializableArray::from_array(&layer.gamma1),
+                norm1_beta: SerializableArray::from_array(&layer.beta1),
+                norm2_gamma: SerializableArray::from_array(&layer.gamma2),
+                norm2_beta: SerializableArray::from_array(&layer.beta2),
+            };
+
+            encoder_weights.push(layer_weights);
+        }
+
+        // 保存分类器权重
+        let (clf_weight, clf_bias) = self.classifier.get_weights();
+        let classifier_weights = ClassifierWeights {
+            weight: SerializableArray::from_array(clf_weight),
+            bias: SerializableArray::from_array(clf_bias),
+        };
+
+        // 保存模型配置
+        let config = ModelConfig {
+            vocab_size: self.vocab_size,
+            d_model: self.d_model,
+            n_heads: self.layers[0].attention.n_heads(),
+            n_layers: self.layers.len(),
+            d_ff: {
+                let ffn_weights = self.layers[0].ffn.get_all_weights();
+                ffn_weights[0].0.ncols()
+            },
+            max_seq_len: 0, // 需要从外部传入
+            n_classes: self.n_classes,
+        };
+
+        Ok(ModelState {
+            embedding_weights,
+            encoder_weights,
+            classifier_weights,
+            config,
+        })
+    }
+
+    fn load_model(&mut self, state: ModelState) -> Result<(), Box<dyn std::error::Error>> {
+        // 验证配置匹配
+        if state.config.vocab_size != self.vocab_size
+            || state.config.d_model != self.d_model
+            || state.config.n_classes != self.n_classes
+        {
+            return Err("Model configuration mismatch".into());
+        }
+
+        // 加载嵌入层权重
+        if let Some(embed_weight) = state.embedding_weights.first() {
+            let arr = embed_weight.to_array();
+            let current_shape = self.embedding.weights().shape();
+            if arr.shape() == current_shape {
+                self.embedding.set_weights(arr);
+            }
+        }
+
+        // 加载每个编码器层的权重
+        for (i, layer_weights) in state.encoder_weights.iter().enumerate() {
+            if i >= self.layers.len() {
+                break;
+            }
+
+            let layer = &mut self.layers[i];
+
+            // 加载注意力权重
+            let attn_weights = vec![
+                (
+                    layer_weights.attn_weights.w_q_weight.to_array(),
+                    layer_weights.attn_weights.w_q_bias.to_array(),
+                ),
+                (
+                    layer_weights.attn_weights.w_k_weight.to_array(),
+                    layer_weights.attn_weights.w_k_bias.to_array(),
+                ),
+                (
+                    layer_weights.attn_weights.w_v_weight.to_array(),
+                    layer_weights.attn_weights.w_v_bias.to_array(),
+                ),
+            ];
+            let output_weights = (
+                layer_weights.attn_weights.w_o_weight.to_array(),
+                layer_weights.attn_weights.w_o_bias.to_array(),
+            );
+            layer.attention.set_all_weights(attn_weights, output_weights);
+
+            // 加载 FFN 权重
+            let ffn_weights = vec![
+                (
+                    layer_weights.ffn_weights.linear1_weight.to_array(),
+                    layer_weights.ffn_weights.linear1_bias.to_array(),
+                ),
+                (
+                    layer_weights.ffn_weights.linear2_weight.to_array(),
+                    layer_weights.ffn_weights.linear2_bias.to_array(),
+                ),
+            ];
+            layer.ffn.set_all_weights(ffn_weights);
+
+            // 加载 LayerNorm 参数
+            layer.gamma1 = layer_weights.norm1_gamma.to_array();
+            layer.beta1 = layer_weights.norm1_beta.to_array();
+            layer.gamma2 = layer_weights.norm2_gamma.to_array();
+            layer.beta2 = layer_weights.norm2_beta.to_array();
+        }
+
+        // 加载分类器权重
+        let clf_weight = state.classifier_weights.weight.to_array();
+        let clf_bias = state.classifier_weights.bias.to_array();
+        self.classifier.set_weights(clf_weight, clf_bias);
+
+        Ok(())
     }
 }
 

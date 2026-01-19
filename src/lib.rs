@@ -48,7 +48,12 @@ pub use lr_scheduler::{LRScheduler, ConstantLR, StepLR, CosineAnnealingWarmResta
 pub use trainer::{Trainer, TrainerConfig, Dataset, DataLoader, SimpleDataset};
 pub use trainable_transformer::TrainableTransformer;
 pub use dataset::{Vocabulary, TextSample, TextClassificationDataset, create_sentiment_dataset};
-pub use checkpoint::{Checkpoint, TrainingHistory, CheckpointManager};
+pub use checkpoint::{
+    Checkpoint, TrainingHistory, CheckpointManager,
+    ModelSaveLoad, ModelState, FullCheckpoint, TrainingState,
+    LayerWeights, AttnWeights, FFNWeights, ClassifierWeights, ModelConfig,
+    OptimizerState, SerializableArray,
+};
 pub use seq2seq::Seq2SeqTransformer;
 pub use decoder::{MaskedAttention, CrossAttention, DecoderLayer};
 pub use pretraining::{MLMPretrainer, MLMConfig, CLMConfig, apply_mlm_mask, apply_mlm_mask_batch, create_clm_targets};

@@ -67,6 +67,11 @@ impl Embedding {
     pub fn weights(&self) -> &Array2<f32> {
         &self.weights
     }
+
+    /// 设置权重（用于加载模型）
+    pub fn set_weights(&mut self, weights: Array2<f32>) {
+        self.weights = weights;
+    }
 }
 
 /// 位置编码
