@@ -1,0 +1,57 @@
+//! # Mini Transformer
+//!
+//! 一个从零实现的小型 Transformer 模型，用于学习 Transformer 原理。
+//!
+//! ## 架构概览
+//!
+//! ```text
+//! Input → Embedding → Positional Encoding →
+//!     [Transformer Encoder Layer × N] → Output
+//!     ├── Multi-Head Self-Attention
+//!     ├── Add & Norm
+//!     ├── Feed Forward Network
+//!     └── Add & Norm
+//! ```
+
+pub mod tensor;
+pub mod embedding;
+pub mod attention;
+pub mod layers;
+pub mod transformer;
+
+pub use tensor::TensorExt;
+pub use embedding::{Embedding, PositionalEncoding};
+pub use attention::{MultiHeadAttention, AttentionParams};
+pub use layers::{FeedForward, LayerNorm};
+pub use transformer::{TransformerEncoder, TransformerClassifier, TransformerConfig};
+
+/// 预设配置
+pub mod configs {
+    use super::TransformerConfig;
+
+    /// 小型模型（用于快速测试）
+    pub fn mini() -> TransformerConfig {
+        TransformerConfig {
+            vocab_size: 1000,
+            d_model: 128,
+            n_heads: 4,
+            n_layers: 2,
+            d_ff: 512,
+            max_seq_len: 64,
+            dropout: 0.1,
+        }
+    }
+
+    /// 基础模型（平衡性能和速度）
+    pub fn base() -> TransformerConfig {
+        TransformerConfig {
+            vocab_size: 10000,
+            d_model: 512,
+            n_heads: 8,
+            n_layers: 6,
+            d_ff: 2048,
+            max_seq_len: 512,
+            dropout: 0.1,
+        }
+    }
+}
