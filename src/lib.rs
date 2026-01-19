@@ -34,6 +34,7 @@ pub mod gradient_clip;
 pub mod rope;
 pub mod tokenizer;
 pub mod flash_attention;
+pub mod causal_lm;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -54,6 +55,7 @@ pub use gradient_clip::{GradientClipConfig, ClipType, clip_gradients, clip_grad_
 pub use rope::{RoPEConfig, RoPEAttention, apply_rope_batch, apply_rotary_pos_emb};
 pub use tokenizer::{BPETokenizer, BPEConfig, BPEStats};
 pub use flash_attention::{FlashAttention, FlashAttentionConfig, StandardAttention};
+pub use causal_lm::{CausalLM, CausalLMConfig, CausalLMBlock};
 
 /// 预设配置
 pub mod configs {
