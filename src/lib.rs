@@ -23,6 +23,8 @@ pub mod loss;
 pub mod optimizer;
 pub mod lr_scheduler;
 pub mod trainer;
+pub mod trainable;
+pub mod trainable_transformer;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -33,6 +35,7 @@ pub use loss::{LossFunction, CrossEntropyLoss, MSELoss, Accuracy};
 pub use optimizer::{Optimizer, SGD, Adam, AdamW};
 pub use lr_scheduler::{LRScheduler, ConstantLR, StepLR, CosineAnnealingWarmRestarts};
 pub use trainer::{Trainer, TrainerConfig, Dataset, DataLoader, SimpleDataset};
+pub use trainable_transformer::TrainableTransformer;
 
 /// 预设配置
 pub mod configs {
