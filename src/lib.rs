@@ -35,6 +35,7 @@ pub mod rope;
 pub mod tokenizer;
 pub mod flash_attention;
 pub mod causal_lm;
+pub mod early_stopping;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -43,7 +44,7 @@ pub use layers::{FeedForward, LayerNorm};
 pub use transformer::{TransformerEncoder, TransformerClassifier, TransformerConfig};
 pub use loss::{LossFunction, CrossEntropyLoss, MSELoss, Accuracy};
 pub use optimizer::{Optimizer, SGD, Adam, AdamW};
-pub use lr_scheduler::{LRScheduler, ConstantLR, StepLR, CosineAnnealingWarmRestarts};
+pub use lr_scheduler::{LRScheduler, ConstantLR, StepLR, CosineAnnealingWarmRestarts, WarmupCosineAnnealing, WarmupPhase};
 pub use trainer::{Trainer, TrainerConfig, Dataset, DataLoader, SimpleDataset};
 pub use trainable_transformer::TrainableTransformer;
 pub use dataset::{Vocabulary, TextSample, TextClassificationDataset, create_sentiment_dataset};
@@ -56,6 +57,7 @@ pub use rope::{RoPEConfig, RoPEAttention, apply_rope_batch, apply_rotary_pos_emb
 pub use tokenizer::{BPETokenizer, BPEConfig, BPEStats};
 pub use flash_attention::{FlashAttention, FlashAttentionConfig, StandardAttention};
 pub use causal_lm::{CausalLM, CausalLMConfig, CausalLMBlock};
+pub use early_stopping::{EarlyStopping, EarlyStoppingConfig, EarlyStoppingMode, EarlyStoppingWithCallback};
 
 /// 预设配置
 pub mod configs {
