@@ -33,6 +33,7 @@ pub mod pretraining;
 pub mod gradient_clip;
 pub mod rope;
 pub mod tokenizer;
+pub mod flash_attention;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -52,6 +53,7 @@ pub use pretraining::{MLMPretrainer, MLMConfig, CLMConfig, apply_mlm_mask, apply
 pub use gradient_clip::{GradientClipConfig, ClipType, clip_gradients, clip_grad_norm, clip_grad_value};
 pub use rope::{RoPEConfig, RoPEAttention, apply_rope_batch, apply_rotary_pos_emb};
 pub use tokenizer::{BPETokenizer, BPEConfig, BPEStats};
+pub use flash_attention::{FlashAttention, FlashAttentionConfig, StandardAttention};
 
 /// 预设配置
 pub mod configs {
