@@ -27,6 +27,8 @@ pub mod trainable;
 pub mod trainable_transformer;
 pub mod dataset;
 pub mod checkpoint;
+pub mod decoder;
+pub mod seq2seq;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -40,6 +42,8 @@ pub use trainer::{Trainer, TrainerConfig, Dataset, DataLoader, SimpleDataset};
 pub use trainable_transformer::TrainableTransformer;
 pub use dataset::{Vocabulary, TextSample, TextClassificationDataset, create_sentiment_dataset};
 pub use checkpoint::{Checkpoint, TrainingHistory, CheckpointManager};
+pub use seq2seq::Seq2SeqTransformer;
+pub use decoder::{MaskedAttention, CrossAttention, DecoderLayer};
 
 /// 预设配置
 pub mod configs {
