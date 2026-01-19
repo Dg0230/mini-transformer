@@ -25,6 +25,8 @@ pub mod lr_scheduler;
 pub mod trainer;
 pub mod trainable;
 pub mod trainable_transformer;
+pub mod dataset;
+pub mod checkpoint;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -36,6 +38,8 @@ pub use optimizer::{Optimizer, SGD, Adam, AdamW};
 pub use lr_scheduler::{LRScheduler, ConstantLR, StepLR, CosineAnnealingWarmRestarts};
 pub use trainer::{Trainer, TrainerConfig, Dataset, DataLoader, SimpleDataset};
 pub use trainable_transformer::TrainableTransformer;
+pub use dataset::{Vocabulary, TextSample, TextClassificationDataset, create_sentiment_dataset};
+pub use checkpoint::{Checkpoint, TrainingHistory, CheckpointManager};
 
 /// 预设配置
 pub mod configs {

@@ -275,6 +275,104 @@ impl TrainableTransformer {
         arr
     }
 
+    /// 完整训练循环（带早停）
+    ///
+    /// # 参数
+    /// - `train_inputs`: 训练输入
+    /// - `train_targets`: 训练标签
+    /// - `val_inputs`: 验证输入
+    /// - `val_targets`: 验证标签
+    /// - `epochs`: 最大训练轮数
+    /// - `learning_rate`: 初始学习率
+    /// - `patience`: 早停耐心值（验证准确率不提升的 epoch 数）
+    ///
+    /// # 返回
+    /// - 训练的 epoch 数
+    /// - 最佳验证准确率
+    pub fn train(
+        &mut self,
+        train_inputs: &[Vec<usize>],
+        train_targets: &[usize],
+        val_inputs: &[Vec<usize>],
+        val_targets: &[usize],
+        epochs: usize,
+        learning_rate: f32,
+        patience: usize,
+    ) -> (usize, f32) {
+        let mut best_val_acc = 0.0;
+        let mut patience_counter = 0;
+        let mut best_epoch = 0;
+
+        println!("\n╔════════════════════════════════════════════════╗");
+        println!("║     开始训练（早停: patience={}）          ║", patience);
+        println!("╚════════════════════════════════════════════════╝\n");
+
+        for epoch in 1..=epochs {
+            let epoch_start = std::time::Instant::now();
+
+            // 训练一个 epoch
+            let mut total_loss = 0.0;
+            let mut total_acc = 0.0;
+
+            for (input, &target) in train_inputs.iter().zip(train_targets.iter()) {
+                let input_batch = Array2::from_shape_vec((1, input.len()), input.clone()).unwrap();
+                let target_onehot = Self::one_hot(target, self.n_classes);
+
+                let (loss, acc) = self.train_step(&input_batch, &target_onehot, learning_rate);
+
+                total_loss += loss;
+                total_acc += acc;
+            }
+
+            let avg_train_loss = total_loss / train_inputs.len() as f32;
+            let avg_train_acc = total_acc / train_inputs.len() as f32;
+
+            // 验证
+            let (val_loss, val_acc) = self.evaluate(val_inputs, val_targets);
+
+            let epoch_time = epoch_start.elapsed().as_secs_f32();
+
+            // 打印进度
+            println!(
+                "Epoch {:2}/{} | Train Loss: {:.4} | Train Acc: {:.2}% | Val Loss: {:.4} | Val Acc: {:.2}% | {:.2}s",
+                epoch,
+                epochs,
+                avg_train_loss,
+                avg_train_acc * 100.0,
+                val_loss,
+                val_acc * 100.0,
+                epoch_time
+            );
+
+            // 检查是否是最佳模型
+            if val_acc > best_val_acc {
+                best_val_acc = val_acc;
+                best_epoch = epoch;
+                patience_counter = 0;
+                println!("  ✨ 新的最佳模型！验证准确率: {:.2}%", val_acc * 100.0);
+            } else {
+                patience_counter += 1;
+                println!("  ⏳ 验证准确率未提升 ({}/{})", patience_counter, patience);
+            }
+
+            // 早停检查
+            if patience_counter >= patience {
+                println!("\n⚠️  早停触发！验证准确率已 {} 个 epoch 未提升", patience);
+                break;
+            }
+
+            println!();
+        }
+
+        println!("╔════════════════════════════════════════════════╗");
+        println!("║     训练完成！                                ║");
+        println!("╚════════════════════════════════════════════════╝");
+        println!("总计 {} 个 epochs", best_epoch);
+        println!("最佳验证准确率: {:.2}% (epoch {})", best_val_acc * 100.0, best_epoch);
+
+        (best_epoch, best_val_acc)
+    }
+
     pub fn param_count(&self) -> usize {
         let embed_params = self.vocab_size * self.d_model;
         let pos_params = self.embedding.d_model() * 1000; // 简化
