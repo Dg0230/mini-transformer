@@ -15,20 +15,20 @@ use crate::tensor::TensorExt;
 #[derive(Debug)]
 pub struct Seq2SeqTransformer {
     // Encoder 部分（简化：使用 embedding 作为编码器）
-    embedding: Embedding,
-    pos_encoding: PositionalEncoding,
+    pub embedding: Embedding,
+    pub pos_encoding: PositionalEncoding,
 
     // Decoder 部分
-    decoder_layers: Vec<DecoderLayer>,
+    pub decoder_layers: Vec<DecoderLayer>,
 
     // 输出投影
-    output_projection: Linear,
+    pub output_projection: Linear,
 
     // 配置
-    vocab_size: usize,
-    d_model: usize,
-    n_layers: usize,
-    max_seq_len: usize,
+    pub vocab_size: usize,
+    pub d_model: usize,
+    pub n_layers: usize,
+    pub max_seq_len: usize,
     training: bool,
 }
 
@@ -67,7 +67,7 @@ impl Seq2SeqTransformer {
     /// 编码输入序列
     ///
     /// encoder_output: [batch_size, seq_len, d_model]
-    fn encode(&mut self, input: &[usize]) -> Array2<f32> {
+    pub fn encode(&mut self, input: &[usize]) -> Array2<f32> {
         // 嵌入
         let mut embedded = self.embedding.forward(input);
 
@@ -83,7 +83,7 @@ impl Seq2SeqTransformer {
     /// - encoder_output: [batch_size, source_seq_len, d_model] - 编码器输出
     ///
     /// 返回: [batch_size, vocab_size] - 下一个 token 的 logits
-    fn decode_step(&mut self, decoder_input: &Array2<f32>, encoder_output: &Array2<f32>) -> Array2<f32> {
+    pub fn decode_step(&mut self, decoder_input: &Array2<f32>, encoder_output: &Array2<f32>) -> Array2<f32> {
         let mut output = decoder_input.clone();
 
         // 通过所有 decoder 层
@@ -137,7 +137,7 @@ impl Seq2SeqTransformer {
     }
 
     /// 计算损失
-    fn compute_loss(&self, logits: &Array2<f32>, target: usize) -> f32 {
+    pub fn compute_loss(&self, logits: &Array2<f32>, target: usize) -> f32 {
         let batch_size = logits.nrows();
         let mut loss = 0.0;
 

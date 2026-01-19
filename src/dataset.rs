@@ -9,15 +9,15 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct Vocabulary {
     /// token 到 ID 的映射
-    token_to_id: HashMap<String, usize>,
+    pub token_to_id: HashMap<String, usize>,
     /// ID 到 token 的映射
-    id_to_token: Vec<String>,
+    pub id_to_token: Vec<String>,
     /// 词汇表大小
-    vocab_size: usize,
+    pub vocab_size: usize,
     /// 未知 token 标记
-    unk_token: String,
+    pub unk_token: String,
     /// 填充 token 标记
-    pad_token: String,
+    pub pad_token: String,
 }
 
 impl Vocabulary {

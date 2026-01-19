@@ -29,6 +29,7 @@ pub mod dataset;
 pub mod checkpoint;
 pub mod decoder;
 pub mod seq2seq;
+pub mod pretraining;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -44,6 +45,7 @@ pub use dataset::{Vocabulary, TextSample, TextClassificationDataset, create_sent
 pub use checkpoint::{Checkpoint, TrainingHistory, CheckpointManager};
 pub use seq2seq::Seq2SeqTransformer;
 pub use decoder::{MaskedAttention, CrossAttention, DecoderLayer};
+pub use pretraining::{MLMPretrainer, MLMConfig, CLMConfig, apply_mlm_mask, apply_mlm_mask_batch, create_clm_targets};
 
 /// 预设配置
 pub mod configs {

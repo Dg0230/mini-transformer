@@ -46,10 +46,23 @@ src/
 ├── optimizer.rs        # 优化器（SGD、Adam、AdamW）
 ├── lr_scheduler.rs     # 学习率调度器
 ├── trainer.rs          # 训练器和数据加载
+├── trainable.rs        # 可训练的 Transformer 层
+├── trainable_transformer.rs  # 完整的可训练模型
+├── dataset.rs          # 数据集和词汇表
+├── checkpoint.rs       # 模型检查点管理
+├── decoder.rs          # Decoder 层实现
+├── seq2seq.rs          # Seq2Seq 模型
+├── pretraining.rs      # 预训练目标（MLM/CLM）
 └── main.rs             # 示例程序
 
 examples/
-└── training.rs         # 训练示例
+├── training.rs         # 训练示例
+├── sentiment_analysis.rs   # 情感分析训练
+├── batch_training.rs   # 批处理训练
+├── optimized_training.rs  # 优化训练
+├── text_generation.rs  # 文本生成
+├── mlm_pretraining.rs  # MLM 预训练示例
+└── clm_pretraining.rs  # CLM 预训练示例
 ```
 
 ## 核心组件
@@ -205,6 +218,46 @@ let output = model.generate_beam(
 );
 ```
 
+### 预训练
+
+```bash
+# MLM (BERT 风格) 预训练
+cargo run --example mlm_pretraining
+
+# CLM (GPT 风格) 预训练
+cargo run --example clm_pretraining
+```
+
+```rust
+use mini_transformer::{MLMPretrainer, MLMConfig, apply_mlm_mask_batch};
+
+// 创建 MLM 预训练模型
+let mut model = MLMPretrainer::new(
+    vocab_size,  // 词汇表大小
+    128,         // d_model
+    4,           // n_heads
+    2,           // n_layers
+    256,         // d_ff
+    max_seq_len, // max_seq_len
+);
+
+// 应用 MLM 掩码
+let mlm_config = MLMConfig::default();
+let (masked_inputs, labels) = apply_mlm_mask_batch(&inputs, &mlm_config, vocab_size);
+
+// 预训练
+model.train(
+    &train_masked,
+    &train_labels,
+    &val_masked,
+    &val_labels,
+    50,    // epochs
+    4,     // batch_size
+    0.001, // learning_rate
+    10,    // patience
+);
+```
+
 ## 模型配置
 
 ### Mini 配置（快速测试）
@@ -295,6 +348,13 @@ GELU(x) ≈ 0.5 × x × (1 + tanh(√(2/π) × (x + 0.044715 × x³)))
 - [x] **束搜索** - 高质量生成
 - [x] **生成示例** - 文本生成演示
 
+### 预训练功能 ✨ 新增
+- [x] **MLM (Masked Language Modeling)** - BERT 风格预训练
+- [x] **CLM (Causal Language Modeling)** - GPT 风格预训练
+- [x] **掩码策略** - 15% token 掩码（80%  + 10% 随机 + 10% 保持）
+- [x] **MLM 预训练示例** - 完整的预训练演示
+- [x] **CLM 预训练示例** - 因果语言建模演示
+
 ## 下一步扩展
 
 ### 方向 A: 改进训练效果
@@ -306,8 +366,8 @@ GELU(x) ≈ 0.5 × x × (1 + tanh(√(2/π) × (x + 0.044715 × x³)))
 
 ### 方向 B: 架构扩展
 - [x] **Decoder 层** - 已实现完整 Seq2Seq
+- [x] **预训练** - 已实现 MLM 和 CLM 预训练
 - [ ] **更多注意力类型** - 实现其他注意力变体
-- [ ] **预训练** - 实现 BERT 风格的预训练
 - [ ] **Transformer-XL** - 长距离依赖
 
 ### 方向 C: 性能优化
