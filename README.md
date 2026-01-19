@@ -80,6 +80,8 @@ cargo test
 
 ## 使用示例
 
+### 基础推理
+
 ```rust
 use mini_transformer::{
     TransformerEncoder, TransformerClassifier, TransformerConfig, configs,
@@ -96,6 +98,47 @@ let output = encoder.forward(&input, None);
 // 分类任务
 let classifier = TransformerClassifier::new(config, 5);  // 5 个类别
 let class = classifier.predict(&input);
+```
+
+### 情感分析训练
+
+```bash
+# 运行情感分析示例
+cargo run --example sentiment_analysis
+```
+
+```rust
+use mini_transformer::{
+    TrainableTransformer, create_sentiment_dataset,
+};
+
+// 加载内置数据集
+let dataset = create_sentiment_dataset();
+
+// 创建模型
+let mut model = TrainableTransformer::new(
+    dataset.vocab.vocab_size(),  // 词汇表大小
+    128,                          // 模型维度
+    4,                            // 注意力头数
+    2,                            # 层数
+    256,                          // FFN 维度
+    10,                           # 最大序列长度
+    dataset.n_classes,            // 类别数
+);
+
+// 训练（带早停）
+let (train_inputs, train_targets) = dataset.encode_train(10);
+let (test_inputs, test_targets) = dataset.encode_test(10);
+
+model.train(
+    &train_inputs,
+    &train_targets,
+    &test_inputs,
+    &test_targets,
+    50,    // 最大 epochs
+    0.01,  // 学习率
+    10,    // 早停 patience
+);
 ```
 
 ## 模型配置
@@ -171,14 +214,30 @@ GELU(x) ≈ 0.5 × x × (1 + tanh(√(2/π) × (x + 0.044715 × x³)))
 - [x] 训练循环框架
 - [x] 评估功能
 
+### 完整训练
+- [x] **反向传播** - 支持端到端训练
+- [x] **模型序列化** - 保存/加载检查点
+- [x] **早停机制** - 防止过拟合
+- [x] **文本数据集** - 情感分类数据集
+- [x] **实战示例** - 情感分析训练
+
 ## 下一步扩展
 
-- [ ] **完整反向传播** - 实现完整的 autograd 系统
-- [ ] **实际训练** - 连接前向和反向传播
+### 方向 A: 改进训练效果
+- [ ] **更多数据** - 扩大数据集规模
+- [ ] **更好的梯度** - 改进反向传播精度
+- [ ] **学习率调度** - 在训练中动态调整
+- [ ] **数据增强** - 文本增强技术
+
+### 方向 B: 架构扩展
 - [ ] **Decoder 层** - 实现完整 Seq2Seq
+- [ ] **更多注意力类型** - 实现其他注意力变体
+- [ ] **预训练** - 实现 BERT 风格的预训练
+
+### 方向 C: 性能优化
 - [ ] **GPU 支持** - 迁移到 candle 或 burn
-- [ ] **模型序列化** - 保存/加载模型权重
-- [ ] **实际应用** - 在真实数据集上训练
+- [ ] **批处理训练** - 支持真正的 batch 训练
+- [ ] **混合精度** - 使用 f16 加速训练
 
 ## 技术栈
 
