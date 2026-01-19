@@ -6,6 +6,7 @@ use ndarray::Array2;
 use crate::trainable::{Linear, TrainableAttention, TrainableFFN};
 use crate::embedding::{Embedding, PositionalEncoding};
 use crate::tensor::TensorExt;
+use crate::lr_scheduler::LRScheduler;
 
 /// 可训练的 Transformer Encoder Layer
 #[derive(Debug)]
@@ -509,6 +510,152 @@ impl TrainableTransformer {
                 "Epoch {:2}/{} | Train Loss: {:.4} | Train Acc: {:.2}% | Val Loss: {:.4} | Val Acc: {:.2}% | {:.2}s | {} batches",
                 epoch,
                 epochs,
+                avg_train_loss,
+                avg_train_acc * 100.0,
+                val_loss,
+                val_acc * 100.0,
+                epoch_time,
+                n_batches
+            );
+
+            // 检查是否是最佳模型
+            if val_acc > best_val_acc {
+                best_val_acc = val_acc;
+                best_epoch = epoch;
+                patience_counter = 0;
+                println!("  ✨ 新的最佳模型！验证准确率: {:.2}%", val_acc * 100.0);
+            } else {
+                patience_counter += 1;
+                println!("  ⏳ 验证准确率未提升 ({}/{})", patience_counter, patience);
+            }
+
+            // 早停检查
+            if patience_counter >= patience {
+                println!("\n⚠️  早停触发！验证准确率已 {} 个 epoch 未提升", patience);
+                break;
+            }
+
+            println!();
+        }
+
+        println!("╔════════════════════════════════════════════════╗");
+        println!("║     训练完成！                                ║");
+        println!("╚════════════════════════════════════════════════╝");
+        println!("总计 {} 个 epochs", best_epoch);
+        println!("最佳验证准确率: {:.2}% (epoch {})", best_val_acc * 100.0, best_epoch);
+
+        (best_epoch, best_val_acc)
+    }
+
+    /// 批处理训练循环（带早停和学习率调度）
+    ///
+    /// # 参数
+    /// - `train_inputs`: 训练输入 [batch_size, seq_len]
+    /// - `train_targets`: 训练标签
+    /// - `val_inputs`: 验证输入
+    /// - `val_targets`: 验证标签
+    /// - `epochs`: 最大训练轮数
+    /// - `batch_size`: 批大小
+    /// - `initial_lr`: 初始学习率
+    /// - `patience`: 早停耐心值
+    /// - `scheduler`: 学习率调度器
+    ///
+    /// # 返回
+    /// - 训练的 epoch 数
+    /// - 最佳验证准确率
+    pub fn train_with_scheduler<S: LRScheduler>(
+        &mut self,
+        train_inputs: &Array2<usize>,
+        train_targets: &[usize],
+        val_inputs: &Array2<usize>,
+        val_targets: &[usize],
+        epochs: usize,
+        batch_size: usize,
+        initial_lr: f32,
+        patience: usize,
+        scheduler: &S,
+    ) -> (usize, f32) {
+        let mut best_val_acc = 0.0;
+        let mut patience_counter = 0;
+        let mut best_epoch = 0;
+        let n_train_samples = train_inputs.nrows();
+
+        println!("\n╔════════════════════════════════════════════════╗");
+        println!("║  优化训练（batch={}, scheduler={}）       ║",
+                batch_size, scheduler.name());
+        println!("║  早停: patience={}                           ║", patience);
+        println!("╚════════════════════════════════════════════════╝\n");
+
+        for epoch in 1..=epochs {
+            let epoch_start = std::time::Instant::now();
+
+            // 获取当前学习率
+            let current_lr = scheduler.get_lr(epoch - 1);
+
+            // 训练一个 epoch（使用批处理）
+            let mut total_loss = 0.0;
+            let mut total_acc = 0.0;
+            let mut n_batches = 0;
+
+            // 打乱数据索引
+            let mut indices: Vec<usize> = (0..n_train_samples).collect();
+            use rand::seq::SliceRandom;
+            indices.shuffle(&mut rand::thread_rng());
+
+            // 按批次训练
+            for batch_start in (0..n_train_samples).step_by(batch_size) {
+                let batch_end = (batch_start + batch_size).min(n_train_samples);
+                let batch_indices = &indices[batch_start..batch_end];
+
+                // 收集批次数据
+                let batch_inputs: Vec<Vec<usize>> = batch_indices
+                    .iter()
+                    .map(|&i| train_inputs.row(i).to_vec())
+                    .collect();
+
+                let batch_targets: Vec<usize> = batch_indices
+                    .iter()
+                    .map(|&i| train_targets[i])
+                    .collect();
+
+                // 构建批次张量
+                let seq_len = batch_inputs[0].len();
+                let mut batch_data = Vec::with_capacity(batch_indices.len() * seq_len);
+                for input in &batch_inputs {
+                    batch_data.extend(input);
+                }
+
+                let input_batch = Array2::from_shape_vec((batch_indices.len(), seq_len), batch_data).unwrap();
+                let target_batch = Self::one_hot_batch(&batch_targets, self.n_classes);
+
+                // 训练一个批次（使用当前学习率）
+                let (loss, acc) = self.train_batch(&input_batch, &target_batch, current_lr);
+
+                total_loss += loss;
+                total_acc += acc;
+                n_batches += 1;
+            }
+
+            let avg_train_loss = total_loss / n_batches as f32;
+            let avg_train_acc = total_acc / n_batches as f32;
+
+            // 验证（使用完整验证集）
+            let val_inputs_vec: Vec<Vec<usize>> = val_inputs
+                .rows()
+                .into_iter()
+                .map(|row| row.to_vec())
+                .collect();
+
+            let (val_loss, val_acc) = self.evaluate(&val_inputs_vec, val_targets);
+
+            let epoch_time = epoch_start.elapsed().as_secs_f32();
+
+            // 打印进度（包含学习率）
+            println!(
+                "Epoch {:2}/{} | LR: {:.6} | Train Loss: {:.4} | Train Acc: {:.2}% | Val Loss: {:.4} | Val Acc: {:.2}% | {:.2}s | {} batches",
+                epoch,
+                epochs,
+                current_lr,
                 avg_train_loss,
                 avg_train_acc * 100.0,
                 val_loss,
