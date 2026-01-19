@@ -12,6 +12,7 @@ use crate::checkpoint::{
     ModelSaveLoad, ModelState, ModelConfig, LayerWeights, AttnWeights,
     FFNWeights, ClassifierWeights, SerializableArray,
 };
+use crate::metrics::ModelPredict;
 
 /// 可训练的 Transformer Encoder Layer
 #[derive(Debug)]
@@ -740,6 +741,12 @@ impl TrainableTransformer {
         let clf_params = self.classifier.param_count();
 
         embed_params + pos_params + layer_params + clf_params
+    }
+}
+
+impl ModelPredict for TrainableTransformer {
+    fn forward(&mut self, input: &Array2<usize>) -> Array2<f32> {
+        self.forward(input)
     }
 }
 

@@ -36,6 +36,7 @@ pub mod tokenizer;
 pub mod flash_attention;
 pub mod causal_lm;
 pub mod early_stopping;
+pub mod metrics;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -63,6 +64,9 @@ pub use tokenizer::{BPETokenizer, BPEConfig, BPEStats};
 pub use flash_attention::{FlashAttention, FlashAttentionConfig, StandardAttention};
 pub use causal_lm::{CausalLM, CausalLMConfig, CausalLMBlock};
 pub use early_stopping::{EarlyStopping, EarlyStoppingConfig, EarlyStoppingMode, EarlyStoppingWithCallback};
+pub use metrics::{
+    ClassificationMetrics, ConfusionMatrix, Perplexity, BLEU, ModelPredict,
+};
 
 /// 预设配置
 pub mod configs {
