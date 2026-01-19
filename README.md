@@ -27,7 +27,15 @@ src/
 ├── attention.rs        # Multi-Head Self-Attention
 ├── layers.rs           # FFN 和 Layer Norm
 ├── transformer.rs      # 完整 Transformer 模型
+├── autograd.rs         # 自动求导和梯度计算
+├── loss.rs             # 损失函数
+├── optimizer.rs        # 优化器（SGD、Adam、AdamW）
+├── lr_scheduler.rs     # 学习率调度器
+├── trainer.rs          # 训练器和数据加载
 └── main.rs             # 示例程序
+
+examples/
+└── training.rs         # 训练示例
 ```
 
 ## 核心组件
@@ -145,14 +153,32 @@ y = γ × ((x - μ) / √(σ² + ε)) + β
 GELU(x) ≈ 0.5 × x × (1 + tanh(√(2/π) × (x + 0.044715 × x³)))
 ```
 
+## 已实现功能 ✓
+
+### 基础架构
+- [x] Multi-Head Self-Attention
+- [x] Feed-Forward Network
+- [x] Layer Normalization
+- [x] 位置编码
+- [x] 残差连接
+
+### 训练功能
+- [x] 自动求导系统（框架）
+- [x] 损失函数（交叉熵、MSE、BCE）
+- [x] 优化器（SGD、Adam、AdamW）
+- [x] 学习率调度器
+- [x] 数据加载器（批处理、shuffle）
+- [x] 训练循环框架
+- [x] 评估功能
+
 ## 下一步扩展
 
-- [ ] 实现训练循环和反向传播
-- [ ] 添加优化器（Adam、SGD）
-- [ ] 实现损失函数（交叉熵）
-- [ ] 添加 Decoder 层（实现完整 Seq2Seq）
-- [ ] 支持 GPU 加速（通过 candle 或 tch-rs）
-- [ ] 添加模型保存/加载功能
+- [ ] **完整反向传播** - 实现完整的 autograd 系统
+- [ ] **实际训练** - 连接前向和反向传播
+- [ ] **Decoder 层** - 实现完整 Seq2Seq
+- [ ] **GPU 支持** - 迁移到 candle 或 burn
+- [ ] **模型序列化** - 保存/加载模型权重
+- [ ] **实际应用** - 在真实数据集上训练
 
 ## 技术栈
 

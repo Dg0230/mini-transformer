@@ -18,12 +18,21 @@ pub mod embedding;
 pub mod attention;
 pub mod layers;
 pub mod transformer;
+pub mod autograd;
+pub mod loss;
+pub mod optimizer;
+pub mod lr_scheduler;
+pub mod trainer;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
 pub use attention::{MultiHeadAttention, AttentionParams};
 pub use layers::{FeedForward, LayerNorm};
 pub use transformer::{TransformerEncoder, TransformerClassifier, TransformerConfig};
+pub use loss::{LossFunction, CrossEntropyLoss, MSELoss, Accuracy};
+pub use optimizer::{Optimizer, SGD, Adam, AdamW};
+pub use lr_scheduler::{LRScheduler, ConstantLR, StepLR, CosineAnnealingWarmRestarts};
+pub use trainer::{Trainer, TrainerConfig, Dataset, DataLoader, SimpleDataset};
 
 /// 预设配置
 pub mod configs {
