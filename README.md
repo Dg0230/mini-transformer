@@ -121,7 +121,7 @@ let mut model = TrainableTransformer::new(
     128,                          // 模型维度
     4,                            // 注意力头数
     2,                            # 层数
-    256,                          // FFN 维度
+    256,                          # FFN 维度
     10,                           # 最大序列长度
     dataset.n_classes,            // 类别数
 );
@@ -139,6 +139,20 @@ model.train(
     0.01,  // 学习率
     10,    // 早停 patience
 );
+```
+
+### 批处理训练
+
+```bash
+# 对比单样本 vs 批处理训练
+cargo run --example batch_training
+```
+
+### 优化训练
+
+```bash
+# 使用学习率调度器
+cargo run --example optimized_training
 ```
 
 ## 模型配置
