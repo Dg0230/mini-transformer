@@ -37,6 +37,7 @@ pub mod flash_attention;
 pub mod causal_lm;
 pub mod early_stopping;
 pub mod metrics;
+pub mod sampling;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -67,6 +68,7 @@ pub use early_stopping::{EarlyStopping, EarlyStoppingConfig, EarlyStoppingMode, 
 pub use metrics::{
     ClassificationMetrics, ConfusionMatrix, Perplexity, BLEU, ModelPredict,
 };
+pub use sampling::{SamplingConfig, SamplingMethod, Sampler};
 
 /// 预设配置
 pub mod configs {
