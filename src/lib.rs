@@ -39,6 +39,7 @@ pub mod early_stopping;
 pub mod metrics;
 pub mod sampling;
 pub mod builtin_datasets;
+pub mod enhanced_datasets;
 
 pub use tensor::TensorExt;
 pub use embedding::{Embedding, PositionalEncoding};
@@ -71,6 +72,7 @@ pub use metrics::{
 };
 pub use sampling::{SamplingConfig, SamplingMethod, Sampler};
 pub use builtin_datasets::{BuiltinDataset, DatasetStats};
+pub use enhanced_datasets::{EnhancedDataset, EnhancedDataset as EnhancedDatasetStats};
 
 /// 预设配置
 pub mod configs {
